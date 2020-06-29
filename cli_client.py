@@ -1,4 +1,4 @@
-from client import Client, MsgType
+from client.client import Client, MsgType
 
 
 def message_handler(type, msg):

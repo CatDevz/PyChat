@@ -1,5 +1,8 @@
 import curses, threading, time, sys
-from client import Client, MsgType
+from client.client import Client, MsgType
+
+class ClientStates:
+    INSERT, COMMAND = range(0,2)
 
 
 running = True
@@ -7,6 +10,7 @@ current_scene = None
 client = None
 message = ""
 online = 0
+state = ClientStates.INSERT
 
 
 class ChatWin:
@@ -16,12 +20,12 @@ class ChatWin:
         curses.start_color()
         curses.use_default_colors()
 
-        curses.init_pair(1, 231, 235)    # BACKGROUND     231, 235
-        curses.init_pair(2, 231, 240)    # INFO BAR       231, 240
-        curses.init_pair(3, 248, 236)    # ONLINE USERS   248, 236
-        curses.init_pair(4, 248, 238)    # BINDINGS       248, 238
+        curses.init_pair(1, 248, 234)    # BACKGROUND     231, 235
+        curses.init_pair(2, 248, 239)    # INFO BAR       231, 240
+        curses.init_pair(3, 248, 235)    # ONLINE USERS   248, 236
+        curses.init_pair(4, 248, 237)    # BINDINGS       248, 238
 
-        curses.init_pair(5, 248, 236)    # SEND AREA      248, 236
+        curses.init_pair(5, 248, 235)    # SEND AREA      248, 236
 
         threading.Thread(target=self.input).start()
 
@@ -45,20 +49,34 @@ class ChatWin:
 
         # Drawing all the text of the application
         for k,v in enumerate(client.get_msg_history()):
-            self.win.addstr(curses.LINES - 5 - k, 4, v, curses.color_pair(1))
-        self.win.addstr(curses.LINES - 2, 2, ': {}'.format(message), curses.color_pair(5))
+            if k < curses.LINES - 6:
+                self.win.addstr(curses.LINES - 5 - k, 4, v, curses.color_pair(1))
+        if state == ClientStates.INSERT:
+            self.win.addstr(curses.LINES - 2, 2, ': {}'.format(message), curses.color_pair(5))
+        elif state == ClientStates.COMMAND:
+            self.win.addstr(curses.LINES - 2, 2, '> {}'.format(message), curses.color_pair(5))
 
 
     def input(self):
-        global message, client
+        global message, client, state, running
 
         while running:
             in_chr = self.win.getch()
             if in_chr != 0:
-                if in_chr == 2:
+                if in_chr == 62:
+                    message = ""
+                    if state == ClientStates.COMMAND:
+                        state = ClientStates.INSERT
+                    elif state == ClientStates.INSERT:
+                        state = ClientStates.COMMAND
+                elif in_chr == 2:
                     pass # OPEN UP A HELP DIALOG
                 elif in_chr == 10:
-                    client.send(message)
+                    if state == ClientStates.INSERT:
+                        client.send(message)
+                    else:
+                        if message.lower() == "q" or message.lower() == "quit":
+                            running = False
                     message = ""
                 elif in_chr == 263:
                     message = message[:len(message)-1]
